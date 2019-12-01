@@ -1,0 +1,39 @@
+.mine-cell {
+    background: #c0c0c0;
+    text-align: center;
+    font-size: 12px;
+    line-height: 20px;
+    box-sizing: border-box;
+    font-weight: bold;
+    border: 1px solid #e2e2e3;
+}
+
+.mine-cell.mine-cell--blank {
+    border: 2px outset #ececec;
+    cursor: pointer;
+}
+
+.mine-cell.mine-cell--blank:hover {
+    border: 3px outset #ececec;
+}
+
+.mine-cell.mine-cell--marked {
+    background: red;
+}
+
+
+.mine-cell.mine-cell--color-1 {
+    color: blue;
+}
+
+.mine-cell.mine-cell--color-2 {
+    color: green;
+}
+
+.mine-cell.mine-cell--color-3 {
+    color: red;
+}
+
+.mine-cell.mine-cell--color-4 {
+    color: darkblue;
+}
