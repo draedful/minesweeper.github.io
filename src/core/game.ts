@@ -76,6 +76,8 @@ const toggleCellMark = produce((state: GameState, x: number, y: number) => {
     }
 });
 
+const WinRegExp = /^You win\. The password for this level is: (.*)/;
+
 export class MineSweeper extends EventEmitter<MineSweeperEvents> {
 
     public state: GameState = {
@@ -121,6 +123,9 @@ export class MineSweeper extends EventEmitter<MineSweeperEvents> {
         } else if (resp === "You lose") {
             this.state = changeGameState(this.state, GameStateType.INIT);
             alert("You lose");
+        } else if (resp.match(WinRegExp)) {
+            const password = resp.match(WinRegExp);
+            password && alert('password: ' + password[1]);
         }
     }
 

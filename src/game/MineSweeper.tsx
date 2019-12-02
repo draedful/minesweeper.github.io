@@ -1,8 +1,8 @@
 import React, { memo, MouseEvent, useCallback, useContext, useEffect, useState } from "react";
 import { areEqual, GridChildComponentProps, VariableSizeGrid } from 'react-window';
-import { MineSweeperContext } from "./App";
-import { Cell, CellState, GameField, GameState } from "./core/game";
 import './minesweeper.css'
+import { MineSweeperContext } from "../App";
+import { Cell, CellState, GameField, GameState } from "../core/game";
 
 
 function useMineSweeper(): GameState {
@@ -27,7 +27,7 @@ const cellColor = (bombs: number | undefined) => {
         return `mine-cell--color-${ bombs }`;
     }
     return '';
-}
+};
 
 const CellComp = ({ data, columnIndex, rowIndex, style }: GridChildComponentProps) => {
     const cell = data.field[rowIndex][columnIndex] as Cell;
@@ -68,13 +68,13 @@ const MineField = ({ field, open, mark }: { field: GameField, open: (x: number, 
         <VariableSizeGrid
             rowHeight={ () => 20 }
             columnWidth={ () => 20 }
-            rowCount={ field.length - 1 }
+            rowCount={ field.length}
             itemData={ {
                 field: field,
                 open: open,
                 mark: mark
             } }
-            columnCount={ field[0].length - 1 }
+            columnCount={ field[0].length }
             height={ 400 }
             width={ 400 }
         >

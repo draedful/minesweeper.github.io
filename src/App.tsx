@@ -2,7 +2,7 @@ import React from 'react';
 import './App.css';
 import { MineSweeper } from "./core/game";
 import { GameServer } from "./core/game-server";
-import { MineSweeperComponent } from "./MineSweeper";
+import { MineSweeperComponent } from "./game/MineSweeper";
 
 const mineSweeper = new MineSweeper(new GameServer('wss://hometask.eg1236.com/game1/'));
 

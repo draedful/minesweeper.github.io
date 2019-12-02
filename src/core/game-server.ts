@@ -68,7 +68,9 @@ export class GameServer implements GameCommandDispatcher {
                 return data
                     .split('\n')
                     .reduce((acc: Row[], row: string) => {
-                        acc.push(row.split('') as Row);
+                        if (row.length > 1) {
+                            acc.push(row.split('') as Row);
+                        }
                         return acc;
                     }, []) as GameCommandResp[Command]
 
