@@ -1,4 +1,5 @@
 import produce from "immer";
+import { act } from "react-dom/test-utils";
 import { isDevMode } from "../helpers/is_dev_mode";
 import { EventEmitter } from "./event-emitter";
 import { GameCommandDispatcher, Notifier, RawGameField } from "./game.typing";
@@ -28,8 +29,13 @@ export type GameField = Cell[][];
 export interface GameState {
     loading: boolean;
     gameState: GameStateType,
-    field: GameField | void;
+    field: GameField;
+    meta: {
+        activeRows: number[],
+    }
 }
+
+type Pos = [number, number];
 
 const changeLoadingState = produce((state: GameState, loading: boolean) => {
     state.loading = loading;
@@ -40,26 +46,43 @@ const updateCell = produce((cell: Cell, state: CellState, bomb?: number) => {
     cell.bombAround = bomb;
 });
 
+const markCells = produce((state: GameState, indexes: Pos[]) => {
+    indexes.forEach(([x, y]) => {
+        if (state.field) {
+            state.field[y][x].state = CellState.Marked;
+        }
+    })
+});
+
 const changeGameMap = produce((state: GameState, gameMap: RawGameField) => {
+    const activeRows: number[] = [];
     state.field = gameMap.reduce((acc: GameField, item: string[], rowIndex: number) => {
         const existedRow = acc[rowIndex];
+        let activeItems = 0;
         const row: Cell[] = item.map((val, cellIndex) => {
             const existedCell = existedRow && existedRow[cellIndex] || {};
             let state = existedCell.state || CellState.Blank;
             let bombAround = existedCell.bombAround;
+            if (state !== CellState.Blank) {
+                activeItems++;
+            }
             if (!isNaN(+val)) {
                 state = CellState.Opened;
                 bombAround = +val;
             }
             return updateCell(existedRow && existedRow[cellIndex] || {}, state, bombAround);
         });
-        if (!existedRow) {
+        if(activeItems > 0 && activeItems < row.length) {
+            activeRows.push(rowIndex);
+        }
+        if (!existedRow ) {
             acc.push(row);
         } else {
             acc[rowIndex] = row;
         }
         return acc;
     }, state.field as GameField);
+    state.meta.activeRows = activeRows;
 });
 
 const resetMap = produce((state: GameState) => {
@@ -76,6 +99,12 @@ const toggleCellMark = produce((state: GameState, x: number, y: number) => {
     }
 });
 
+export enum GameOpenCellResp {
+    WIN,
+    LOSE,
+    CONTINUE
+}
+
 const WinRegExp = /^You win\. The password for this level is: (.*)/;
 
 export class MineSweeper extends EventEmitter<MineSweeperEvents> {
@@ -84,8 +113,10 @@ export class MineSweeper extends EventEmitter<MineSweeperEvents> {
         loading: false,
         gameState: GameStateType.INIT,
         field: [],
+        meta: { activeRows: [] }
     };
 
+    public level: number | undefined;
 
     constructor(
         private dispatcher: GameCommandDispatcher,
@@ -95,6 +126,7 @@ export class MineSweeper extends EventEmitter<MineSweeperEvents> {
     }
 
     public async startNewGame(level: number): Promise<void> {
+        this.level = level;
         this.setLoading(true);
         this.state = changeGameState(resetMap(this.state), GameStateType.INIT);
         this.emitChange();
@@ -110,7 +142,11 @@ export class MineSweeper extends EventEmitter<MineSweeperEvents> {
         }
     }
 
-    public async openCell(x: number, y: number): Promise<void> {
+    public async openCell(x: number, y: number): Promise<GameOpenCellResp> {
+        // @ts-ignore
+        if (isOpened(getCell(this.state.field, x, y)) as Cell) {
+            return Promise.resolve(GameOpenCellResp.CONTINUE);
+        }
         this.setLoading(true, { emit: false });
         const resp = await this.dispatcher.dispatch("open", `${ x } ${ y }`);
         if (resp === "OK") {
@@ -122,16 +158,79 @@ export class MineSweeper extends EventEmitter<MineSweeperEvents> {
             }
         } else if (resp === "You lose") {
             this.state = changeGameState(this.state, GameStateType.INIT);
-            alert("You lose");
+            return GameOpenCellResp.LOSE;
         } else if (resp.match(WinRegExp)) {
-            const password = resp.match(WinRegExp);
-            password && alert('password: ' + password[1]);
+            window.localStorage.setItem('level' + this.level, resp);
+            return GameOpenCellResp.WIN;
         }
+        return GameOpenCellResp.CONTINUE;
     }
 
     public markCell(x: number, y: number): void {
         this.state = toggleCellMark(this.state, x, y);
         this.emitChange();
+    }
+
+    public nextStep(): Pos[] | null {
+        if (this.state.field) {
+            // const clickTo = this.startOpening();
+            const clickTo = this.markGameField();
+            if (clickTo && clickTo.length) {
+                return clickTo;
+            } else {
+                this.emitChange();
+            }
+
+            for (let rowIndex = 0; rowIndex < this.state.field.length; rowIndex++) {
+                for (let cellIndex = 0; cellIndex < this.state.field[rowIndex].length; cellIndex += 2) {
+                    if (isBlank(this.state.field[rowIndex][cellIndex])) {
+                        console.log('try to guess + 2', cellIndex, rowIndex);
+                        return [[cellIndex, rowIndex]];
+                    }
+                }
+            }
+            for (let rowIndex = 0; rowIndex < this.state.field.length; rowIndex++) {
+                for (let cellIndex = 0; cellIndex < this.state.field[rowIndex].length; cellIndex += 1) {
+                    if (isBlank(this.state.field[rowIndex][cellIndex])) {
+                        console.log('try to guess + 1', cellIndex, rowIndex);
+                        return [[cellIndex, rowIndex]];
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private markGameField(): Pos[] | void {
+        const open = [];
+        const cache = new Set();
+        if (this.state.meta.activeRows.length) {
+            for (let activeRowsIndex = this.state.meta.activeRows[0] || 0; activeRowsIndex < this.state.meta.activeRows.length; activeRowsIndex++) {
+                const cellsCount = this.state.field[0].length;
+                for (let cellIndex = 0; cellIndex < cellsCount; cellIndex++) {
+                    const rowIndex = this.state.meta.activeRows[activeRowsIndex];
+                    if (!this.state.meta.activeRows.includes(rowIndex)) continue;
+                    const cell = getCell(this.state.field, cellIndex, rowIndex) as Cell;
+                    if (isOpened(cell) && cell.bombAround as number > 0) {
+                        const { marked, opened, blank } = groupCells(
+                            this.state.field,
+                            getCellsAround(this.state.field, cellIndex, rowIndex)
+                        );
+                        if (opened.length && blank.length) {
+                            if (blank.length === (cell.bombAround as number - marked.length)) {
+                                this.state = markCells(this.state, blank);
+                            }
+                            const id = blank[0].join('');
+                            if (marked.length === cell.bombAround && !cache.has(id)) {
+                                cache.add(id);
+                                open.push(blank[0]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return open;
     }
 
     protected setLoading(loading: boolean, conf?: { emit: boolean }): void {
@@ -153,4 +252,74 @@ export class MineSweeper extends EventEmitter<MineSweeperEvents> {
 
 }
 
+function getCell(gameField: GameField, x: number, y: number): Cell | null {
+    if (y >= 0 && x >= 0) {
+        const row = gameField[y];
+        if (row && row.length > x) {
+            return row[x];
+        }
+    }
+    return null;
+}
+
+function hasCell(gameField: GameField, x: number, y: number): boolean {
+    if (y >= 0 && x >= 0) {
+        const row = gameField[y];
+        return row && row.length > x;
+    }
+    return false;
+}
+
+const isBlank = (cell: Cell): boolean => cell.state === CellState.Blank;
+const isOpened = (cell: Cell): boolean => cell.state === CellState.Opened;
+
+function isBlankCell(gameField: GameField, x: number, y: number): boolean {
+    const cell = getCell(gameField, x, y);
+    return !!cell && cell.state === CellState.Blank;
+}
+
+function getCellsAround(gameField: GameField, x: number, y: number): Pos[] {
+    const Top = y - 1;
+    const Bottom = y + 1;
+    const Left = x - 1;
+    const Right = x + 1;
+    const pos: Pos[] = [];
+    hasCell(gameField, Left, Top) && pos.push([Left, Top]);
+    hasCell(gameField, x, Top) && pos.push([x, Top]);
+    hasCell(gameField, Right, Top) && pos.push([Right, Top]);
+    hasCell(gameField, Left, y) && pos.push([Left, y]);
+    hasCell(gameField, Right, y) && pos.push([Right, y]);
+    hasCell(gameField, Left, Bottom) && pos.push([Left, Bottom]);
+    hasCell(gameField, Right, Bottom) && pos.push([Right, Bottom]);
+    hasCell(gameField, x, Bottom) && pos.push([x, Bottom]);
+    return pos;
+}
+
+interface CellsGroup {
+    marked: Pos[],
+    opened: Pos[],
+    blank: Pos[],
+}
+
+function groupCells(gameField: GameField, indexes: Pos[]): CellsGroup {
+    return indexes.reduce((acc: CellsGroup, pos: Pos) => {
+        const cell = getCell(gameField, pos[0], pos[1]) as Cell;
+        switch (cell.state) {
+            case CellState.Blank:
+                acc.blank.push(pos);
+                break;
+            case CellState.Marked:
+                acc.marked.push(pos);
+                break;
+            case CellState.Opened:
+                acc.opened.push(pos);
+                break;
+        }
+        return acc;
+    }, {
+        marked: [],
+        opened: [],
+        blank: [],
+    } as CellsGroup)
+}
 

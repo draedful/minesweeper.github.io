@@ -23,35 +23,38 @@ export class GameServer implements GameCommandDispatcher {
     dispatch<Command extends keyof GameCommandResp>(command: Command, args?: string): Promise<GameCommandResp[Command]> {
         if (this.isOpen()) {
             return new Promise((resolve, reject) => {
-                this.webSocket.send(concat(command, args));
-                const onMessage = (e: MessageEvent) => {
-                    const msgPattern = getCommandPattern(command);
-                    const respMatch = msgPattern.exec(e.data);
-                    if (respMatch) {
-                        const respCommand = respMatch[1];
-                        if (respCommand && respCommand === command) {
-                            // TODO: check is body presented
-                            resolve(this.readCommandResp(command, respMatch[2]));
-                            removeListeners();
+                setTimeout(() => {
+                    this.webSocket.send(concat(command, args));
+                    const onMessage = (e: MessageEvent) => {
+                        const msgPattern = getCommandPattern(command);
+                        const respMatch = msgPattern.exec(e.data);
+                        if (respMatch) {
+                            const respCommand = respMatch[1];
+                            if (respCommand && respCommand === command) {
+                                // TODO: check is body presented
+                                resolve(this.readCommandResp(command, respMatch[2]));
+                                removeListeners();
+                            }
                         }
-                    }
-                };
+                    };
 
-                const onError = (e: Event | CloseEvent) => {
-                    reject(e);
-                    removeListeners();
-                };
-                const removeListeners = () => {
-                    this.webSocket.removeEventListener("message", onMessage);
-                    this.webSocket.removeEventListener("error", onError);
-                    this.webSocket.removeEventListener("close", onError);
-                };
-                this.webSocket.addEventListener("message", onMessage);
-                this.webSocket.addEventListener("error", onError, { once: true });
-                this.webSocket.addEventListener("close", onError, { once: true });
+                    const onError = (e: Event | CloseEvent) => {
+                        reject(e);
+                        removeListeners();
+                    };
+                    const removeListeners = () => {
+                        this.webSocket.removeEventListener("message", onMessage);
+                        this.webSocket.removeEventListener("error", onError);
+                        this.webSocket.removeEventListener("close", onError);
+                    };
+                    this.webSocket.addEventListener("message", onMessage);
+                    this.webSocket.addEventListener("error", onError, { once: true });
+                    this.webSocket.addEventListener("close", onError, { once: true });
+                }, 0);
             })
         }
-        return Promise.reject(new Error('Connection is not established'))
+        return this.awaitOpen()
+            .then(() => this.dispatch(command, args))
     }
 
     public isOpen(): boolean {
@@ -60,6 +63,23 @@ export class GameServer implements GameCommandDispatcher {
 
     public send(message: string): void {
         this.webSocket.send(message);
+    }
+
+    private awaitOpen(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const onOpen = () => {
+                this.webSocket.removeEventListener("open", onOpen);
+                this.webSocket.removeEventListener("close", onError);
+                resolve();
+            };
+            const onError = () => {
+                this.webSocket.removeEventListener("open", onOpen);
+                this.webSocket.removeEventListener("close", onError);
+                reject();
+            };
+            this.webSocket.addEventListener("open", onOpen, { once: true });
+            this.webSocket.addEventListener("close", onError, { once: true });
+        })
     }
 
     private readCommandResp<Command extends keyof GameCommandResp>(command: Command, data: string): GameCommandResp[Command] {

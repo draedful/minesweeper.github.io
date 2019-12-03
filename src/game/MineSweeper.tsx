@@ -1,102 +1,143 @@
-import React, { memo, MouseEvent, useCallback, useContext, useEffect, useState } from "react";
-import { areEqual, GridChildComponentProps, VariableSizeGrid } from 'react-window';
+import React, { memo, MouseEvent, useCallback, useContext } from "react";
+import { VariableSizeGrid } from 'react-window';
+import { GameField, GameOpenCellResp } from "../core/game";
+import { MemoCell } from "./Cell";
+import { MineSweeperContext } from "./context";
+import { useMineSweeper } from "./hooks";
 import './minesweeper.css'
-import { MineSweeperContext } from "../App";
-import { Cell, CellState, GameField, GameState } from "../core/game";
 
 
-function useMineSweeper(): GameState {
-    const minesweeper = useContext(MineSweeperContext);
-    const [gameState, setState] = useState(minesweeper.state);
-    useEffect(() => {
-        const off = minesweeper.on("change", setState);
-        return () => off();
-    }, [minesweeper]);
-    return gameState;
-}
-
-const addClassName = (className: string) => (condition: boolean): string => {
-    return condition ? className : ''
-};
-
-const cellBlankClass = addClassName('mine-cell--blank');
-const cellOpenedClass = addClassName('mine-cell--opened');
-const cellMarkedClass = addClassName('mine-cell--marked');
-const cellColor = (bombs: number | undefined) => {
-    if (bombs && bombs <= 4) {
-        return `mine-cell--color-${ bombs }`;
-    }
-    return '';
-};
-
-const CellComp = ({ data, columnIndex, rowIndex, style }: GridChildComponentProps) => {
-    const cell = data.field[rowIndex][columnIndex] as Cell;
-    const openCell = useCallback(() => {
-        if (cell.state === CellState.Blank) {
-            data.open(columnIndex, rowIndex);
+const MineField = ({ field, open, mark }: { field: GameField, open: (x: number, y: number) => void, mark: (x: number, y: number) => void }) => {
+    const rowCount = field.length;
+    const cellsCount = field[0].length;
+    const openCell = useCallback((e: MouseEvent) => {
+        // @ts-ignore
+        const [x, y] = e.target.dataset.position.split(',');
+        if (x && y) {
+            open(+x, +y);
         }
-    }, [data.open, columnIndex, rowIndex]);
+    }, [open]);
     const markCell = useCallback((e: MouseEvent) => {
-        data.mark(columnIndex, rowIndex);
-        e.preventDefault();
-    }, [data.mark, columnIndex, rowIndex]);
+        // @ts-ignore
+        const [x, y] = e.target.dataset.position.split(',');
+        if (x && y) {
+            mark(+x, +y);
+        }
+    }, [open]);
     return (
-        <div
-            style={ style }
-            onClick={ openCell }
-            onContextMenu={ markCell }
-            className={ `mine-field__cell mine-cell ${ cellColor(cell.bombAround) } ${ cellBlankClass(cell.state === CellState.Blank) } ${ cellOpenedClass(cell.state === CellState.Opened) } ${ cellMarkedClass(cell.state === CellState.Marked) }` }
-        >
-            { cell.bombAround ? cell.bombAround : void 0 }
+        <div onClick={ openCell } onContextMenu={ markCell }>
+            <VariableSizeGrid
+                rowHeight={ () => 20 }
+                columnWidth={ () => 20 }
+                rowCount={ rowCount }
+                itemData={ field }
+                columnCount={ cellsCount }
+                height={ (rowCount * 20) }
+                width={ (cellsCount * 20) }
+            >
+                { MemoCell }
+            </VariableSizeGrid>
         </div>
     )
 };
 
-function isSameCells(prevCell: Cell, nextCells: Cell): boolean {
-    return prevCell === nextCells && prevCell.state === nextCells.state && prevCell.bombAround === nextCells.bombAround;
+interface QueueItem {
+    action(): Promise<any>;
+
+    resolve: (data: any) => void;
+    reject: (reject: any) => void;
 }
 
-const MemoCell = memo(CellComp,
-    (prev, next) => {
-        return isSameCells(prev.data.field[prev.rowIndex][prev.columnIndex], next.data.field[prev.rowIndex][prev.columnIndex]) && areEqual(prev, next);
-    });
+export class PromiseQueue {
+    private queue: QueueItem[] = [];
+    private active: boolean = false;
+
+    public add<T>(fn: () => Promise<T>): Promise<T> {
+        return new Promise((resolve, reject) => {
+            this.queue.push({
+                action: fn,
+                reject,
+                resolve,
+            });
+            this.next();
+        })
+    }
+
+    private next(): void {
+        if (!this.active) {
+            const item = this.queue.shift();
+            if (item) {
+                this.active = true;
+                item.action().then(
+                    (data) => {
+                        this.active = false;
+                        item.resolve(data);
+                        this.next()
+                    },
+                    (error) => {
+                        this.active = false;
+                        item.reject(error);
+                        this.next();
+                    }
+                )
+            }
+        }
+    }
+}
+
+const queue = new PromiseQueue();
+
+const GameMenu = memo(({ click }: { click: (x: number, y: number) => Promise<GameOpenCellResp> }) => {
+    const minesweeper = useContext(MineSweeperContext);
+    const trySolveStep = useCallback(async () => {
+        const pos = minesweeper.nextStep();
+        if (pos) {
+            const items = pos.map((a) => queue.add(() => click(a[0], a[1])));
+            const resp = Promise.all(items)
+                .then((resp) => {
+                    const last = resp.pop();
+                    switch (last) {
+                        case GameOpenCellResp.CONTINUE:
+                            setTimeout(trySolveStep, 0);
+                            break;
+                        case GameOpenCellResp.LOSE:
+                            minesweeper.startNewGame(minesweeper.level as number).then(() => {
+                                setTimeout(trySolveStep, 0);
+                            });
+                            break;
+                        case GameOpenCellResp.WIN:
+                            debugger;
+                            minesweeper.startNewGame(minesweeper.level as number + 1).then(() => {
+                                setTimeout(trySolveStep, 0)
+                            });
+                            break;
+                    }
+                })
 
 
-const MineField = ({ field, open, mark }: { field: GameField, open: (x: number, y: number) => void, mark: (x: number, y: number) => void }) => {
-
+        }
+    }, [minesweeper]);
     return (
-        <VariableSizeGrid
-            rowHeight={ () => 20 }
-            columnWidth={ () => 20 }
-            rowCount={ field.length}
-            itemData={ {
-                field: field,
-                open: open,
-                mark: mark
-            } }
-            columnCount={ field[0].length }
-            height={ 400 }
-            width={ 400 }
-        >
-            { MemoCell }
-        </VariableSizeGrid>
+        <div>
+            <button onClick={ () => minesweeper.startNewGame(1) }> Level 1</button>
+            <button onClick={ () => minesweeper.startNewGame(2) }> Level 2</button>
+            <button onClick={ () => minesweeper.startNewGame(3) }> Level 3</button>
+            <button onClick={ () => minesweeper.startNewGame(4) }> Level 4</button>
+            <button onClick={ trySolveStep }> Next Step</button>
+        </div>
     )
-};
-
+}, (prev, next) => prev.click === next.click)
 
 export const MineSweeperComponent = () => {
     const minesweeper = useContext(MineSweeperContext);
     const gameState = useMineSweeper();
     const click = useCallback((x: number, y: number) => minesweeper.openCell(x, y), [minesweeper]);
     const mark = useCallback((x: number, y: number) => minesweeper.markCell(x, y), [minesweeper]);
+
+
     return (
         <>
-            <div>
-                <button onClick={ () => minesweeper.startNewGame(1) }> Level 1</button>
-                <button onClick={ () => minesweeper.startNewGame(2) }> Level 2</button>
-                <button onClick={ () => minesweeper.startNewGame(3) }> Level 3</button>
-                <button onClick={ () => minesweeper.startNewGame(4) }> Level 4</button>
-            </div>
+            <GameMenu click={ click }/>
             {
                 gameState.field && gameState.field.length > 0 &&
                 <MineField field={ gameState.field } open={ click } mark={ mark }/>
