@@ -1,8 +1,8 @@
 import produce from "immer";
-import { act } from "react-dom/test-utils";
 import { isDevMode } from "../helpers/is_dev_mode";
 import { EventEmitter } from "./event-emitter";
 import { GameCommandDispatcher, Notifier, RawGameField } from "./game.typing";
+import { PromiseQueue } from "./helpers/queue";
 
 export enum GameStateType {
     INIT,
@@ -72,10 +72,10 @@ const changeGameMap = produce((state: GameState, gameMap: RawGameField) => {
             }
             return updateCell(existedRow && existedRow[cellIndex] || {}, state, bombAround);
         });
-        if(activeItems > 0 && activeItems < row.length) {
+        if (activeItems > 0 && activeItems < row.length) {
             activeRows.push(rowIndex);
         }
-        if (!existedRow ) {
+        if (!existedRow) {
             acc.push(row);
         } else {
             acc[rowIndex] = row;
@@ -118,6 +118,8 @@ export class MineSweeper extends EventEmitter<MineSweeperEvents> {
 
     public level: number | undefined;
 
+    private queue: PromiseQueue = new PromiseQueue();
+
     constructor(
         private dispatcher: GameCommandDispatcher,
         private notifier?: Notifier,
@@ -157,9 +159,51 @@ export class MineSweeper extends EventEmitter<MineSweeperEvents> {
                 this.emitChange();
             }
         } else if (resp === "You lose") {
+            console.log('loose');
             this.state = changeGameState(this.state, GameStateType.INIT);
             return GameOpenCellResp.LOSE;
         } else if (resp.match(WinRegExp)) {
+            window.localStorage.setItem('level' + this.level, resp);
+            return GameOpenCellResp.WIN;
+        }
+        return GameOpenCellResp.CONTINUE;
+    }
+
+    public async batchOpenCell(pos: Pos[]): Promise<GameOpenCellResp> {
+        this.setLoading(true, { emit: false });
+        const resp = await Promise.all(pos.map((p) => {
+            return this.queue.add(() => {
+                const cell = getCell(this.state.field, p[0], p[1]);
+                if (cell && isOpened(cell)) {
+                    return Promise.resolve('OK');
+                } else if (!cell) {
+                    return Promise.reject();
+                }
+                return this.dispatcher.dispatch("open", `${ p[0] } ${ p[1] }`)
+            }).then((resp) => {
+                if (resp === "You lose") {
+                    if (p.join(',') === this.randomSelect.join(',')) {
+                        console.log('loose with random', this.randomSelect);
+                    } else {
+                        console.log('loose');
+                    }
+                }
+                return resp as string;
+            })
+        }))
+            .then((resp: string[]) => resp.pop());
+
+        if (resp === "OK") {
+            const map = await this.dispatcher.dispatch("map");
+            if (map) {
+                this.applyField(map);
+                this.setLoading(false);
+                this.emitChange();
+            }
+        } else if (resp === "You lose") {
+            this.state = changeGameState(this.state, GameStateType.INIT);
+            return GameOpenCellResp.LOSE;
+        } else if (resp && resp.match(WinRegExp)) {
             window.localStorage.setItem('level' + this.level, resp);
             return GameOpenCellResp.WIN;
         }
@@ -170,6 +214,8 @@ export class MineSweeper extends EventEmitter<MineSweeperEvents> {
         this.state = toggleCellMark(this.state, x, y);
         this.emitChange();
     }
+
+    private randomSelect: Pos = [-1, -1];
 
     public nextStep(): Pos[] | null {
         if (this.state.field) {
@@ -185,6 +231,8 @@ export class MineSweeper extends EventEmitter<MineSweeperEvents> {
                 for (let cellIndex = 0; cellIndex < this.state.field[rowIndex].length; cellIndex += 2) {
                     if (isBlank(this.state.field[rowIndex][cellIndex])) {
                         console.log('try to guess + 2', cellIndex, rowIndex);
+                        this.randomSelect[0] = cellIndex;
+                        this.randomSelect[1] = rowIndex;
                         return [[cellIndex, rowIndex]];
                     }
                 }
@@ -193,6 +241,8 @@ export class MineSweeper extends EventEmitter<MineSweeperEvents> {
                 for (let cellIndex = 0; cellIndex < this.state.field[rowIndex].length; cellIndex += 1) {
                     if (isBlank(this.state.field[rowIndex][cellIndex])) {
                         console.log('try to guess + 1', cellIndex, rowIndex);
+                        this.randomSelect[0] = cellIndex;
+                        this.randomSelect[1] = rowIndex;
                         return [[cellIndex, rowIndex]];
                     }
                 }
@@ -219,6 +269,8 @@ export class MineSweeper extends EventEmitter<MineSweeperEvents> {
                         if (opened.length && blank.length) {
                             if (blank.length === (cell.bombAround as number - marked.length)) {
                                 this.state = markCells(this.state, blank);
+                                cellIndex--;
+                                continue;
                             }
                             const id = blank[0].join('');
                             if (marked.length === cell.bombAround && !cache.has(id)) {

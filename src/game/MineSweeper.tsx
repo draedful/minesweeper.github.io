@@ -87,16 +87,14 @@ export class PromiseQueue {
 
 const queue = new PromiseQueue();
 
-const GameMenu = memo(({ click }: { click: (x: number, y: number) => Promise<GameOpenCellResp> }) => {
+const GameMenu = () => {
     const minesweeper = useContext(MineSweeperContext);
     const trySolveStep = useCallback(async () => {
         const pos = minesweeper.nextStep();
         if (pos) {
-            const items = pos.map((a) => queue.add(() => click(a[0], a[1])));
-            const resp = Promise.all(items)
+            const resp = minesweeper.batchOpenCell(pos)
                 .then((resp) => {
-                    const last = resp.pop();
-                    switch (last) {
+                    switch (resp) {
                         case GameOpenCellResp.CONTINUE:
                             setTimeout(trySolveStep, 0);
                             break;
@@ -106,7 +104,6 @@ const GameMenu = memo(({ click }: { click: (x: number, y: number) => Promise<Gam
                             });
                             break;
                         case GameOpenCellResp.WIN:
-                            debugger;
                             minesweeper.startNewGame(minesweeper.level as number + 1).then(() => {
                                 setTimeout(trySolveStep, 0)
                             });
@@ -126,7 +123,7 @@ const GameMenu = memo(({ click }: { click: (x: number, y: number) => Promise<Gam
             <button onClick={ trySolveStep }> Next Step</button>
         </div>
     )
-}, (prev, next) => prev.click === next.click)
+};
 
 export const MineSweeperComponent = () => {
     const minesweeper = useContext(MineSweeperContext);
@@ -137,7 +134,7 @@ export const MineSweeperComponent = () => {
 
     return (
         <>
-            <GameMenu click={ click }/>
+            <GameMenu />
             {
                 gameState.field && gameState.field.length > 0 &&
                 <MineField field={ gameState.field } open={ click } mark={ mark }/>
