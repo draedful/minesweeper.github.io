@@ -2,9 +2,26 @@ type Cell = string;
 export type Row = Cell[];
 export type RawGameField = Row[];
 
+
+export enum GameCommandOpenRespStatus {
+    OK,
+    WIN,
+    LOSE
+}
+
+export enum GameCommandNewRespStatus {
+    OK,
+    Err,
+}
+
+export interface GameCommandOpenResp {
+    status: GameCommandOpenRespStatus,
+    message?: string;
+}
+
 export interface GameCommandResp {
-    new: string;
-    open: string;
+    new: GameCommandNewRespStatus;
+    open: GameCommandOpenResp;
     map: RawGameField;
 }
 
@@ -33,3 +50,5 @@ export interface Notifier {
 
     request<Type extends keyof NotificationRequestTypes>(type: Type): Promise<NotificationRequestTypes[Type]>;
 }
+
+

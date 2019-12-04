@@ -20,6 +20,10 @@ export class PromiseQueue {
         })
     }
 
+    public clear(): void {
+        this.queue.length = 0;
+    }
+
     private next(): void {
         if (!this.active) {
             const item = this.queue.shift();

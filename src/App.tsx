@@ -1,13 +1,18 @@
 import React from 'react';
 import './App.css';
-import { mineSweeper, MineSweeperContext } from "./game/context";
-import { MineSweeperComponent } from "./game/MineSweeper";
+import { MineSweeper } from "./minesweeper/context";
+import { GameField } from "./minesweeper/field";
+import { GameMenu } from "./minesweeper/GameMenu";
+import { ServerProvider } from "./server/context";
 
 const App: React.FC = () => {
     return (
-        <MineSweeperContext.Provider value={ mineSweeper }>
-            <MineSweeperComponent/>
-        </MineSweeperContext.Provider>
+        <ServerProvider>
+            <MineSweeper>
+                <GameMenu/>
+                <GameField/>
+            </MineSweeper>
+        </ServerProvider>
     );
 };
 
