@@ -2,6 +2,8 @@ import React, { useCallback, useContext } from "react";
 import { GameCommandOpenRespStatus } from "../core/game.typing";
 import { MineSweeperContext } from "./context";
 
+let count = 1;
+let timeStart = Date.now();
 export const GameMenu = () => {
     const mineSweeper = useContext(MineSweeperContext);
     const new1 = useCallback(() => {
@@ -18,23 +20,29 @@ export const GameMenu = () => {
     }, [mineSweeper]);
     const runAuto = useCallback(async () => {
         if (mineSweeper) {
-            const open = await mineSweeper.predictOpen();
+            const open = mineSweeper.predictOpen();
             if (open && open.length) {
                 const resp = await mineSweeper.openCell(...open);
                 switch (resp) {
                     case GameCommandOpenRespStatus.LOSE:
+                        count++;
                         await mineSweeper.newGame(mineSweeper.level);
                         break;
                     case GameCommandOpenRespStatus.WIN:
+                        console.log('level', mineSweeper.level, ': take ', count, ' attempts: for ', Date.now() - timeStart, ' sec');
+                        count = 1;
                         if (mineSweeper.level < 4) {
                             await mineSweeper.newGame(mineSweeper.level + 1);
+                            timeStart = Date.now();
+                        } else {
+                            return;
                         }
-                        return;
                 }
             }
-            setTimeout(runAuto, 1000);
+            runAuto();
         }
     }, [mineSweeper]);
+
     return (
         <div>
             <button onClick={ new1 }>New 1</button>

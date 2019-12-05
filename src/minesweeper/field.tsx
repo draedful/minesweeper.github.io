@@ -14,33 +14,34 @@ function useMineSweeper(): [Field, GameStateEnum, boolean] {
         if (mineSweeper) {
             let timer: any;
             const onChangeField = mineSweeper.on("changeField", (field) => {
+
                 if (!timer) {
                     timer = setTimeout(() => {
                         setField(field);
                         timer = null;
+                    }, 100)
+                }
+            });
+            const onChangeLoading = mineSweeper.on("loading", (loading) => {
+                if (!timer) {
+                    timer = setTimeout(() => {
+                        setLoading(loading);
+                        timer = null;
                     })
                 }
             });
-            // const onChangeLoading = mineSweeper.on("loading", (loading) => {
-            //     if (!timer) {
-            //         timer = setTimeout(() => {
-            //             setLoading(loading);
-            //             timer = null;
-            //         })
-            //     }
-            // });
-            // const onChangeState = mineSweeper.on("changeState", (state) => {
-            //     if (!timer) {
-            //         timer = setTimeout(() => {
-            //             setState(state);
-            //             timer = null;
-            //         })
-            //     }
-            // });
+            const onChangeState = mineSweeper.on("changeState", (state) => {
+                if (!timer) {
+                    timer = setTimeout(() => {
+                        setState(state);
+                        timer = null;
+                    })
+                }
+            });
             return () => {
                 onChangeField();
-                // onChangeLoading();
-                // onChangeState();
+                onChangeLoading();
+                onChangeState();
             }
         }
 
@@ -51,12 +52,12 @@ function useMineSweeper(): [Field, GameStateEnum, boolean] {
 
 
 export const GameField = () => {
-    const [field, _state, loading] = useMineSweeper();
+    const [field, _state, _loading] = useMineSweeper();
     const rowCount = field.length;
     const cellsCount = rowCount ? field[0].length : 0;
     const getSize = useCallback(() => 20, []);
-    const height = useMemo(() => Math.min(rowCount * 20, 600), [rowCount]);
-    const width = useMemo(() => Math.min(cellsCount * 20, 400), [cellsCount]);
+    const height = useMemo(() => Math.min(rowCount * 20, 800), [rowCount]);
+    const width = useMemo(() => Math.min(cellsCount * 20, 600), [cellsCount]);
     return (
         <VariableSizeGrid
             rowHeight={ getSize }

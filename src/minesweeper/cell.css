@@ -6,6 +6,7 @@
     box-sizing: border-box;
     font-weight: bold;
     border: 1px solid #e2e2e3;
+    transition: background 300ms, color 300ms, border-color 200ms;
 }
 
 .mine-cell.mine-cell--blank {

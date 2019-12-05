@@ -51,9 +51,9 @@ export class MinesweeperGame extends EventEmitter<MinesweeperEvents> implements 
     public async openCell(...cells: FieldCell[]): Promise<GameCommandOpenRespStatus> {
         let lastResp;
         this.setLoading(true);
-        while (cells.length) {
+        for (let i = 0; i <= cells.length; i++) {
             const cell = cells.shift() as FieldCell;
-            if (cell.mode === FieldCellMode.Opened) {
+            if (!cell) {
                 continue;
             }
             lastResp = await this.dispatcher.dispatch("open", cell.id);
@@ -71,6 +71,7 @@ export class MinesweeperGame extends EventEmitter<MinesweeperEvents> implements 
                     this.setGameState(GameStateEnum.Init);
                     return lastResp.status;
                 case GameCommandOpenRespStatus.WIN:
+                    console.log('WIN', this.level, lastResp.message);
                     if (lastResp.message) {
                         window.localStorage.setItem(`level-${ this.level }`, lastResp.message);
                     } else {
@@ -79,32 +80,29 @@ export class MinesweeperGame extends EventEmitter<MinesweeperEvents> implements 
                     this.setLoading(false);
                     this.setGameState(GameStateEnum.Init);
                     return lastResp.status;
-                case GameCommandOpenRespStatus.OK:
-                    await this.updateMap();
             }
         }
+        await this.updateMap();
         this.setLoading(false);
         return GameCommandOpenRespStatus.OK;
     }
 
-    public async predictOpen() {
+    public predictOpen() {
         const resp = solveMinesweeper(this.field);
         if (resp.mark.length) {
             this.markCells(...resp.mark);
-        }
-        if (resp.probability.length) {
-            return resp.probability;
         }
         return resp.open;
     }
 
     public markCells(...cells: FieldCell[]): void {
+        console.log('mark');
         cells.forEach((cell) => {
             if (cell.mode === FieldCellMode.Blank) {
                 cell.setMode(FieldCellMode.Marked)
             }
         });
-        this.emit("changeField", this.gameField.slice());
+        this.emit("changeField", Array.from(this.gameField));
     }
 
     public async updateMap(): Promise<void> {
@@ -132,7 +130,7 @@ export class MinesweeperGame extends EventEmitter<MinesweeperEvents> implements 
 
                 });
                 return acc;
-            }, this.gameField.slice());
+            }, Array.from(this.gameField));
             this.emit("changeField", this.gameField);
         }
 
