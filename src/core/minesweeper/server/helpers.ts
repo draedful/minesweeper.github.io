@@ -4,7 +4,7 @@ import {
     GameCommandOpenRespStatus,
     GameCommandResp,
     Row
-} from "../game.typing";
+} from "../game/dispatcher.typing";
 
 type RegExpRepGroup = Record<'command' | 'body', string>;
 
@@ -59,4 +59,16 @@ export function readCommandResp<Command extends keyof GameCommandResp>(command: 
 
     }
     throw new Error("Unknown response " + data);
+}
+
+const DIVIDER = ' ';
+export const concat = <T extends { toString(): string } | undefined | null>(...args: T[]): string => {
+    return args
+        .filter(Boolean)
+        .join(DIVIDER);
+};
+
+
+export const getCommand = (data: string): string => {
+    return data.split(DIVIDER)[0];
 }

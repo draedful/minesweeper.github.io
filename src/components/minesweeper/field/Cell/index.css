@@ -1,0 +1,44 @@
+.mine-cell {
+    text-align: center;
+    box-sizing: border-box;
+    font-weight: bold;
+    background: #D8D8D8;
+}
+
+.table-auto .mine-cell.mine-cell--opened:not(.mine-cell--marked):not(.mine-cell--color-0):hover {
+    cursor: pointer;
+    background: #C8C8C8;
+}
+
+.mine-cell.mine-cell--blank {
+    cursor: pointer;
+    box-shadow: inset 1px 1px 0px #FFFFFF, inset -1px -1px 0px #7B787B;
+}
+
+.mine-cell.mine-cell--blank:hover, .mine-cell--opened, .mine-cell--marked {
+    box-shadow: inset 1px 1px 0px #7B787B, inset -1px -1px 0px #FFFFFF;
+}
+
+.mine-cell--marked {
+    font-size: 1em;
+}
+
+.mine-cell.mine-cell--blank:hover {
+    background: #e3e3e3;
+}
+
+.mine-cell.mine-cell--color-1 {
+    color: blue;
+}
+
+.mine-cell.mine-cell--color-2 {
+    color: green;
+}
+
+.mine-cell.mine-cell--color-3 {
+    color: red;
+}
+
+.mine-cell.mine-cell--color-4 {
+    color: darkblue;
+}

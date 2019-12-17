@@ -1,0 +1,14 @@
+
+.table {
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 10px;
+
+  tr {
+    height: 2em;
+
+    td {
+      min-width: 2em;
+    }
+  }
+}

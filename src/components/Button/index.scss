@@ -1,0 +1,13 @@
+@import "../../mixins";
+
+.minesweeper-button {
+  @include block(4px);
+}
+
+.minesweeper-button:active {
+  border-top: 4px solid #7B787B;
+  border-left: 4px solid #7B787B;
+  border-right: 4px solid #FFFFFF;
+  border-bottom: 4px solid #FFFFFF;
+  outline: none;
+}

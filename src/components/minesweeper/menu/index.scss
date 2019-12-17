@@ -1,0 +1,13 @@
+.minesweeper-buttons {
+  display: flex;
+  flex-direction: column;
+
+  .minesweeper-buttons__item {
+    max-width: 30rem;
+    height: 3rem;
+
+    &:not(:last-child) {
+      margin-bottom: 2rem;
+    }
+  }
+}

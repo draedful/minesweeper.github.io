@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./",
+    "paths": {
+      "@minesweeper/*": [
+        "src/core/minesweeper/*"
+      ]
+    }
+  }
+}

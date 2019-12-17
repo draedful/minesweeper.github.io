@@ -1,0 +1,10 @@
+@import "./mixins.scss";
+
+.game-wrapper {
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  @include block(4px);
+  height: 100vh;
+}

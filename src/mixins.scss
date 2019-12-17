@@ -1,0 +1,7 @@
+@mixin block($size: 1px) {
+  background: #D8D8D8;
+  border-top: $size solid #FFFFFF;
+  border-left: $size solid #FFFFFF;
+  border-right: $size solid #7B787B;
+  border-bottom: $size solid #7B787B;
+}
