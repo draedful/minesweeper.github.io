@@ -8,27 +8,29 @@ import {
 import { Field, FieldCell, FieldCellMode, GameStateEnum, MineSweeperController, MinesweeperEvents } from "./typing";
 
 
+function mapCells(field: Field, cells: FieldCell[], fn: (cell: FieldCell) => FieldCell): Field {
+    let copied = new Set();
+    cells.forEach((cell) => {
+        if (cell.mode !== FieldCellMode.Opened) {
+            field[cell.y][cell.x] = fn(cell);
+            if (!copied.has(cell.y)) {
+                field[cell.y] = Array.from(field[cell.y]);
+                copied.add(cell.y);
+            }
+        }
+    });
+    if (copied.size) {
+        return Array.from(field);
+    }
+    return field;
+}
+
 export class MinesweeperGame extends EventEmitter<MinesweeperEvents> implements MineSweeperController {
 
-    public get field(): Field {
-        return this.gameField;
-    }
-
-    public get loading(): boolean {
-        return this.isLoading;
-    }
-
-    public get state(): GameStateEnum {
-        return this.gameState;
-    }
-
-    public startTime: number | void = void 0;
     public level: number = 0;
-
-    protected gameField: Field = [];
-    protected isLoading: boolean = false;
-    protected gameState: GameStateEnum = GameStateEnum.Init;
-
+    public field: Field = [];
+    public loading: boolean = false;
+    public state: GameStateEnum = GameStateEnum.Init;
 
     constructor(
         private dispatcher: GameCommandDispatcher,
@@ -36,14 +38,12 @@ export class MinesweeperGame extends EventEmitter<MinesweeperEvents> implements 
         super();
     }
 
-
     public async newGame(level: number): Promise<GameCommandNewRespStatus> {
         if (level !== this.level) {
-            this.gameField = []
+            this.field = []
         } else {
             this.clearField();
         }
-        this.startTime = void 0;
         this.emitChangeField();
         this.level = level;
         this.setLoading(true);
@@ -57,34 +57,29 @@ export class MinesweeperGame extends EventEmitter<MinesweeperEvents> implements 
     }
 
     public markCell(...cells: FieldCell[]): void {
-        this.applyStartTime();
-        let copied = new Set();
-        cells.forEach((cell) => {
-            if (cell.mode === FieldCellMode.Blank) {
-                this.gameField[cell.y][cell.x] = cell.update(FieldCellMode.Marked);
-                if (!copied.has(cell.y)) {
-                    this.gameField[cell.y] = Array.from(this.gameField[cell.y]);
-                    copied.add(cell.y);
-                }
+        const newField = mapCells(this.field, cells, (cell: FieldCell) => {
+            if (cell.mode !== FieldCellMode.Opened) {
+                return cell.update(cell.mode === FieldCellMode.Blank ? FieldCellMode.Marked : FieldCellMode.Blank);
             }
+            return cell;
         });
-        if (copied.size) {
+        if (newField !== this.field) {
             this.emitChangeField();
         }
-        copied.clear();
     }
 
     public close(): void {
         this.setGameState(GameStateEnum.Init);
     }
 
-    public async openCell(...cells: FieldCell[]): Promise<GameCommandOpenResp | undefined> {
-        let lastResp;
-        this.applyStartTime();
+    public async openCell(...cells: FieldCell[]): Promise<GameCommandOpenResp> {
         this.setLoading(true);
-        lastResp = await Promise.all(cells.map((cell) => this.dispatcher.dispatch("open", cell.id)))
+        this.markCellsAsOpening(cells);
+        let lastResp = await Promise.all(
+            cells.map((cell) => this.dispatcher.dispatch("open", cell.id))
+        )
             .then((resps) => {
-                return resps.find((a) => {
+                return resps.find((a, index) => {
                     switch (a.status) {
                         case GameCommandOpenRespStatus.LOSE:
                         case GameCommandOpenRespStatus.WIN:
@@ -92,40 +87,32 @@ export class MinesweeperGame extends EventEmitter<MinesweeperEvents> implements 
                     }
                     return false;
                 }) || resps[resps.length - 1];
+            })
+            .then((lastResp) => {
+                switch (lastResp.status) {
+                    case GameCommandOpenRespStatus.LOSE:
+                        this.setGameState(GameStateEnum.Lose);
+                        break;
+                    case GameCommandOpenRespStatus.WIN:
+                        this.setGameState(GameStateEnum.Win);
+                        if (lastResp.message) {
+                            window.localStorage.setItem(`level-${ this.level }`, lastResp.message);
+                        }
+                        break;
+                }
+                return lastResp;
             });
-        if (lastResp) {
-            switch (lastResp.status) {
-                case GameCommandOpenRespStatus.LOSE:
-                    this.updateMap();
-                    this.setLoading(false);
-                    this.setGameState(GameStateEnum.Lose);
-                    return lastResp;
-                case GameCommandOpenRespStatus.WIN:
-                    this.setGameState(GameStateEnum.Win);
-                    console.log('WIN', this.level, lastResp.message);
-                    if (lastResp.message) {
-                        window.localStorage.setItem(`level-${ this.level }`, lastResp.message);
-                    }
-                    this.setLoading(false);
-                    return lastResp;
-            }
-        }
         await this.updateMap();
         this.setLoading(false);
         return lastResp;
-    }
-
-    protected applyStartTime(): void {
-        if (!this.startTime) {
-            this.startTime = Date.now();
-        }
     }
 
     public async updateMap(): Promise<void> {
         this.setLoading(true);
         const map = await this.dispatcher.dispatch("map");
         if (map) {
-            this.gameField = map.reduce((acc: Field, item: string[], rowIndex) => {
+            let modified = false;
+            const newField = map.reduce((acc: Field, item: string[], rowIndex) => {
                 let touched = false;
                 let row = acc[rowIndex];
                 if (!row) {
@@ -135,6 +122,7 @@ export class MinesweeperGame extends EventEmitter<MinesweeperEvents> implements 
                 item.forEach((value: string, cellIndex: number) => {
                     if (!row[cellIndex]) {
                         row.push(new FieldCell(cellIndex, rowIndex));
+                        modified = true;
                     } else {
                         let item = row[cellIndex];
                         const bombs = +value;
@@ -153,35 +141,45 @@ export class MinesweeperGame extends EventEmitter<MinesweeperEvents> implements 
                 });
                 if (touched) {
                     acc[rowIndex] = Array.from(row);
+                    modified = true;
                 }
                 return acc;
-            }, this.gameField);
-            this.emitChangeField();
+            }, this.field);
+            this.setLoading(false);
+            if (modified) {
+                this.field = Array.from(newField);
+                this.emitChangeField();
+            }
         }
     }
 
     protected setLoading(loading: boolean): void {
-        if (this.isLoading !== loading) {
-            this.isLoading = loading;
-            this.emit("loading", this.isLoading);
+        if (this.loading !== loading) {
+            this.loading = loading;
+            this.emit("loading", this.loading);
         }
     }
 
     protected setGameState(gameState: GameStateEnum): void {
-        if (this.gameState !== gameState) {
-            this.gameState = gameState;
-            this.emit("changeState", this.gameState);
+        if (this.state !== gameState) {
+            this.state = gameState;
+            this.emit("changeState", this.state);
         }
     }
 
     private emitChangeField(): void {
-        this.emit("changeField", Array.from(this.field))
+        this.emit("changeField", this.field);
     }
 
     private clearField(): void {
-        this.gameField = this.gameField.map((row) => {
+        this.field = this.field.map((row) => {
             return row.map((cell) => cell.update(FieldCellMode.Blank))
         });
+    }
+
+    private markCellsAsOpening(cells: FieldCell[]): void {
+        mapCells(this.field, cells, (cell) => cell.update(FieldCellMode.MarkOpen));
+        this.emit("changeField", Array.from(this.field));
     }
 
 }

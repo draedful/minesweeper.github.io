@@ -1,8 +1,9 @@
 import { CommandServer } from "@minesweeper/server";
 import React, { ReactNode } from "react";
+import { WS_SERVER } from "../helpers/env";
 
 // TODO: use env to get ws url
-const server = new CommandServer('wss://hometask.eg1236.com/game1/');
+const server = new CommandServer(WS_SERVER);
 
 export const ServerContext = React.createContext(server);
 

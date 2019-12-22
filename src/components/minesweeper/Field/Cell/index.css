@@ -15,8 +15,16 @@
     box-shadow: inset 1px 1px 0px #FFFFFF, inset -1px -1px 0px #7B787B;
 }
 
-.mine-cell.mine-cell--blank:hover, .mine-cell--opened, .mine-cell--marked {
+.mine-cell.mine-cell--blank:hover, .mine-cell--marked-open, .mine-cell--opened, .mine-cell--marked {
     box-shadow: inset 1px 1px 0px #7B787B, inset -1px -1px 0px #FFFFFF;
+}
+
+.mine-cell--marked-open:after {
+    content: '*';
+}
+.mine-cell--marked:after {
+    content: '$';
+    color: red;
 }
 
 .mine-cell--marked {

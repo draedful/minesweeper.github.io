@@ -13,10 +13,12 @@ export const LoadingDialog = () => {
                     if (dialog.current && !dialog.current.open) {
                         dialog.current.showModal();
                     }
+                    break;
                 case CommandServerState.CONNECTED:
                     if (dialog.current && dialog.current.open) {
                         dialog.current && dialog.current.close();
                     }
+                    break;
             }
         }
     }, [state]);

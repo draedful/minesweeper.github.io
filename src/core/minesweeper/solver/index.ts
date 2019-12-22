@@ -1,288 +1,208 @@
-import { Field, FieldCell, FieldCellMode } from "../game";
+import { Field, FieldCell, FieldCellMode } from "@minesweeper/game";
 
-export interface SolveStep {
-    marked: FieldCell[],
-    open: FieldCell[]
-}
-
-const open: FieldCell[] = [];
-const marked: FieldCell[] = [];
-const probability: Map<FieldCell, number> = new Map();
-
-const Result = {
-    marked: marked,
-    open: open,
+const getCell = (gameField: Field, x: number, y: number): FieldCell | void => (gameField[y] && gameField[y][x]) || void 0;
+const isBlank = (gameField: Field, x: number, y: number): boolean => {
+    const cell = getCell(gameField, x, y);
+    return !!cell && cell.mode === FieldCellMode.Blank;
 };
 
-export function predictCellAround(field: Field, cell: FieldCell): SolveStep {
-    const mark: FieldCell[] = [];
-    const open: FieldCell[] = [];
-    test(field, cell, open, mark);
-    return {
-        marked: Array.from(marked),
-        open: Array.from(open)
-    };
-}
-
-const test = (field: Field, cell: FieldCell, open: FieldCell[] = [], marked: FieldCell[] = [], probMap?: Map<FieldCell, number>) => {
-    const NotTouched = (cell: FieldCell) => !open.includes(cell) && !marked.includes(cell);
-    if (isOpened(cell) && cell.bombs) {
-        const group = groupCells(field, cell.x, cell.y, true);
-        for (let i = 0; i < group.opened.length; i++) {
-            const openedCell = group.opened[i];
-            if (openedCell.bombs) {
-                let touched = false;
-                const groupOpened = groupCells(field, openedCell.x, openedCell.y, true);
-                const reallyBlank = groupOpened.blank.filter(NotTouched);
-                if (reallyBlank.length) {
-                    const prob = checkProbabilityWithState(openedCell, groupOpened, marked, open);
-                    if (prob >= 0) {
-                        if (prob === 0) {
-                            reallyBlank.forEach((a) => {
-                                open.push(a);
-                                probMap && probMap.has(a) && probMap.delete(a);
-                            });
-                            touched = true;
-                        } else if (prob >= 1) {
-                            reallyBlank.forEach((a) => {
-                                marked.push(a);
-                                probMap && probMap.has(a) && probMap.delete(a);
-                            });
-                            touched = true;
-                        } else if (probMap) {
-                            // TODO: re-check
-                            // We may find
-                            reallyBlank.forEach((a) => {
-                                if (probMap.has(a)) {
-                                    const prevMaxProb = probability.get(a) as number;
-                                    probMap.set(a, Math.max(prob, prevMaxProb || 0));
-                                } else {
-                                    probMap.set(a, prob);
-                                }
-                            });
-                        }
-                    }
-                    if (touched) {
-                        i = -1;
-                    }
-                }
-            }
-        }
-
-        if (probMap && probMap.size) {
-            const cells = Array.from(probMap.keys());
-            for (let j = 0; j < cells.length; j++) {
-                const cell = cells[j];
-                const origProb = probMap.get(cell) as number;
-                const group = groupCells(field, cell.x, cell.y, true);
-                let maxProb = -1;
-                for (let i = 0; i < group.opened.length; i++) {
-                    const openedCell = group.opened[i];
-                    if (openedCell.bombs) {
-                        const groupOpened = groupCells(field, openedCell.x, openedCell.y, true);
-                        if (groupOpened.blank.length) {
-                            maxProb = Math.max(maxProb, checkProbabilityWithState(openedCell, groupOpened, marked, open));
-                        }
-                    }
-                }
-                if (maxProb >= 0) {
-                    if (maxProb !== origProb) {
-                        if (maxProb === 0) {
-                            open.push(cell);
-                            probMap.delete(cell);
-                            cells.splice(j, 1);
-                            j = -1;
-                        } else if (maxProb >= 1) {
-                            marked.push(cell);
-                            probMap.delete(cell);
-                            cells.splice(j, 1);
-                            j = -1;
-                        } else if (probMap) {
-                            probMap.set(cell, Math.max(maxProb, origProb));
-                        }
-                    }
-
-                } else {
-                    probMap.delete(cell);
-                }
-            }
-        }
-    }
-}
-
-export function solveMinesweeper(field: Field): SolveStep {
-    open.length = 0;
-    marked.length = 0;
-    probability.clear();
-    let empty = true;
-    for (let row = 1; row < field.length; row++) {
-        let touched = false;
-        for (let cellIndex = 0; cellIndex < field[row].length; cellIndex++) {
-            const cell = getCell(field, cellIndex, row) as FieldCell;
-            if (isOpened(cell)) {
-                const prevOpen = open.length;
-                const preMark = marked.length;
-                empty = false;
-                test(field, cell, open, marked, probability);
-                if (preMark !== marked.length && prevOpen !== open.length) {
-                    touched = true;
-                }
-            }
-        }
-        if (touched) {
-            row -= 2;
-        }
-    }
-    if (!open.length && probability.size) {
-        let maxItem = Array.from(probability.entries())
-            .reduce((acc, item) => {
-                if (acc[1] > item[1]) {
-                    return item;
-                }
-                return acc;
-            });
-        if (maxItem[1] <= .5) {
-            console.log('choose max prob item', Array.from(probability.values()), maxItem);
-            return {
-                open: [maxItem[0]],
-                marked,
-            };
-        }
-    }
-    const result = Result;
-    result.marked = marked;
-    result.open = open;
-    if (empty) {
-        let attempts = 0;
-        while (attempts <= 50) {
-            attempts++;
-            const x = Math.ceil(Math.random() * field.length);
-            const y = Math.ceil(Math.random() * field[0].length);
-            if (isBlank(field, x, y)) {
-                return {
-                    marked: Array.from(marked),
-                    open: [getCell(field, x, y) as FieldCell]
-                };
-            }
-        }
-    }
-    if (!open.length) {
-        for (let row = 0; row < field.length; row++) {
-            for (let cell = 0; cell < field[row].length; cell++) {
-                if (isBlank(field, cell, row)) {
-                    return {
-                        marked: Array.from(marked),
-                        open: [getCell(field, cell, row) as FieldCell]
-                    };
-                }
-            }
-        }
-    }
-    return {
-        marked: Array.from(marked),
-        open: Array.from(open)
-    };
-}
-
-interface CellsGroup {
+interface CellsAround {
     marked: FieldCell[],
     opened: FieldCell[],
     blank: FieldCell[],
 }
 
-const getCell = (gameField: Field, x: number, y: number): FieldCell | null => gameField[y] && gameField[y][x] || null;
-
-const hasCell = (gameField: Field, x: number, y: number): boolean => !!getCell(gameField, x, y);
-
-const groupCells = (gameField: Field, x: number, y: number, include: boolean = false): CellsGroup => {
-    const initial: CellsGroup = {
-        marked: [],
-        opened: [],
-        blank: [],
-    };
-    if (include) {
-        initial.opened.push(getCell(gameField, x, y) as FieldCell);
-    }
-    return hasCell(gameField, x, y)
-        ? getCellsAround(gameField, x, y)
-            .reduce((acc: CellsGroup, cell: FieldCell) => {
-                switch (cell.mode) {
+function getCellsAround(field: Field, x: number, y: number, include?: boolean): CellsAround {
+    const top = y - 1;
+    const bottom = y + 1;
+    const left = x - 1;
+    const right = x + 1;
+    return [
+        include && getCell(field, x, y),
+        getCell(field, left, top),
+        getCell(field, x, top),
+        getCell(field, right, top),
+        getCell(field, left, y),
+        getCell(field, right, y),
+        getCell(field, left, bottom),
+        getCell(field, right, bottom),
+        getCell(field, x, bottom),
+    ]
+        .reduce((acc: CellsAround, item: FieldCell | void | false) => {
+            if (item) {
+                switch (item.mode) {
                     case FieldCellMode.Blank:
-                        acc.blank.push(cell);
-                        break;
-                    case FieldCellMode.Marked:
-                        acc.marked.push(cell);
+                        acc.blank.push(item);
                         break;
                     case FieldCellMode.Opened:
-                        acc.opened.push(cell);
+                        acc.opened.push(item);
+                        break;
+                    case FieldCellMode.Marked:
+                        acc.marked.push(item);
                         break;
                 }
-                return acc;
-            }, initial)
-        : initial;
-};
-
-const getCellsAroundByType = (field: Field, x: number, y: number, mode: FieldCellMode): FieldCell[] => {
-    const opened: FieldCell[] = [];
-    return getCellsAround(field, x, y)
-        .reduce((acc: FieldCell[], cell: FieldCell) => {
-            if (cell.mode === mode) {
-                acc.push(cell);
             }
             return acc;
-        }, opened);
-};
-
-const isOpened = (cell: FieldCell) => {
-    return cell && cell.mode === FieldCellMode.Opened && cell.bombs;
-};
-const isBlank = (gameField: Field, x: number, y: number) => {
-    const cell = getCell(gameField, x, y);
-    return cell && cell.mode === FieldCellMode.Blank;
-};
-
-function getCellsAround(gameField: Field, x: number, y: number): FieldCell[] {
-    const Top = y - 1;
-    const Bottom = y + 1;
-    const Left = x - 1;
-    const Right = x + 1;
-    return [
-        getCell(gameField, Left, Top),
-        getCell(gameField, x, Top),
-        getCell(gameField, Right, Top),
-        getCell(gameField, Left, y),
-        getCell(gameField, Right, y),
-        getCell(gameField, Left, Bottom),
-        getCell(gameField, Right, Bottom),
-        getCell(gameField, x, Bottom),
-    ].filter(Boolean) as FieldCell[];
+        }, { marked: [], opened: [], blank: [] });
 }
 
-
-function checkProbability(
-    cell: FieldCell,
-    groups: CellsGroup,
-): number {
-    if (cell.bombs) {
-        if (groups.blank.length) {
-            return (cell.bombs - groups.marked.length) / groups.blank.length;
-        }
-    }
-    return -1;
-}
-
-function checkProbabilityWithState(
-    cell: FieldCell,
-    groups: CellsGroup,
-    marked: FieldCell[],
+export interface SolveFieldState {
+    mark: FieldCell[],
     open: FieldCell[],
+    predict?: Map<FieldCell, number[]>,
+}
+
+function getBlankWithState(cells: FieldCell[], fieldState: SolveFieldState): FieldCell[] {
+    return cells.filter(c => !fieldState.mark.includes(c) && !fieldState.open.includes(c));
+}
+
+function predictIsBombAroundInBlankCells(
+    field: Field,
+    cell: FieldCell,
+    fieldState: SolveFieldState,
 ): number {
     if (cell.bombs) {
-        const blankCount = groups.blank.filter((i) => !marked.includes(i) && !open.includes(i)).length;
+        const { marked, blank } = getCellsAround(field, cell.x, cell.y);
+        const blankCount = getBlankWithState(blank, fieldState).length;
+        const markedCount = marked.length + blank.filter((i) => fieldState.mark.includes(i)).length;
         if (blankCount) {
-            const marker = groups.marked.length + groups.blank.filter((i) => marked.includes(i)).length;
-            return (cell.bombs - marker) / blankCount;
+            return (cell.bombs - markedCount) / blankCount;
         }
     }
     return -1;
 }
+
+function setProbMapWithRisk(map: Required<SolveFieldState>['predict'], cells: FieldCell[], prob: number): void {
+    cells.forEach((c) => {
+        const prev = map.get(c) || [];
+        if (!prev.includes(prob)) {
+            prev.push(prob);
+        }
+        map.set(c, prev);
+    })
+}
+
+function removeCellFromProbMap(map: Required<SolveFieldState>['predict'], cells: FieldCell[]): void {
+    cells.forEach((c) => map.delete(c));
+}
+
+export function lookAround(field: Field, x: number, y: number, fieldState: SolveFieldState = {
+    mark: [],
+    open: [],
+    predict: new Map()
+}): SolveFieldState {
+    const groups = getCellsAround(field, x, y, true);
+    const predicted = new Set();// set of cells which already used for predict
+    if (groups.opened.length) {
+        for (let i = 0; i < groups.opened.length; i++) {
+            const cell = groups.opened[i];
+            if (!predicted.has(cell) && cell.bombs) {
+                const groups1 = getCellsAround(field, cell.x, cell.y);
+                const blankCells = getBlankWithState(groups1.blank, fieldState);
+                if (!blankCells.length) continue;
+
+                const risk = predictIsBombAroundInBlankCells(field, cell, fieldState);
+                if (risk >= 0) {
+                    let touched = false;
+                    switch (risk) {
+                        case 0:
+                            fieldState.open.push(...blankCells);
+                            fieldState.predict && removeCellFromProbMap(fieldState.predict, blankCells);
+                            predicted.add(cell);
+                            touched = true;
+                            break;
+                        case 1:
+                            fieldState.mark.push(...blankCells);
+                            fieldState.predict && removeCellFromProbMap(fieldState.predict, blankCells);
+                            predicted.add(cell);
+                            touched = true;
+                            break;
+                        default:
+                            if (fieldState.predict) {
+                                setProbMapWithRisk(fieldState.predict, blankCells, risk);
+                            }
+                    }
+                    if (touched) {
+                        i = 0 - 1; // repeat
+                    }
+                }
+            }
+        }
+    }
+    return fieldState;
+}
+
+export function lookAtField(field: Field, solveState: SolveFieldState = {
+    mark: [],
+    open: [],
+    predict: new Map(),
+}): SolveFieldState {
+    for (let rowIndex = 1; rowIndex < field.length; rowIndex += 2) {
+        if (field[rowIndex]) {
+            for (let cellIndex = 1; cellIndex < field[rowIndex].length; cellIndex += 2) {
+                let prevMark = solveState.mark.length;
+                let prevOpen = solveState.open.length;
+                lookAround(field, cellIndex, rowIndex, solveState);
+                if (prevMark !== solveState.mark.length || prevOpen !== solveState.open.length) {
+                    rowIndex = Math.max(1, rowIndex - 4);
+                    break;
+                }
+            }
+        }
+    }
+
+    return solveState;
+}
+
+
+export function predictFromState(predictMap: Required<SolveFieldState>['predict'], field?: Field, maxProb: number = 1): FieldCell | void {
+    let items = Array.from(predictMap.entries());
+    const groups = items.reduce((acc: Map<number, FieldCell[]>, [cell, prob]) => {
+        const average = prob.reduce((a, b) => a + b) / prob.length;
+        const cellsSet = acc.get(average) || [];
+        cellsSet.push(cell);
+        acc.set(average, cellsSet);
+        return acc;
+    }, new Map());
+
+    const minProb = Math.min(...Array.from(groups.keys()));
+    const cells = groups.get(minProb) as FieldCell[];
+
+    return cells[Math.floor(Math.random() * cells.length)];
+}
+
+export function openRandomCell(field: Field): FieldCell | void {
+    let attempts = 0;
+    while (attempts <= field.length * 2) {
+        attempts++;
+        const x = Math.ceil(Math.random() * field.length);
+        const y = Math.ceil(Math.random() * field[0].length);
+        if (isBlank(field, x, y)) {
+            return getCell(field, x, y) as FieldCell;
+        }
+    }
+    for (let row = 0; row < field.length; row++) {
+        for (let cell = 0; cell < field[row].length; cell++) {
+            if (isBlank(field, cell, row)) {
+                return getCell(field, cell, row) as FieldCell;
+            }
+        }
+    }
+    // TODO: Theoretically unreachable branch, because until we not win we have at least two blank cells
+    return void 0;
+}
+
+
+export function checkPredict(field: Field, predict: Required<SolveFieldState>['predict']): SolveFieldState {
+    const context = {
+        open: [],
+        mark: [],
+        predict: new Map(),
+    };
+    predict.forEach((a, cell) => {
+        lookAround(field, cell.x, cell.y, context);
+    });
+    return context;
+}
+
+

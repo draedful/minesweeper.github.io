@@ -19,9 +19,33 @@
   font-size: 3rem;
 }
 
-.minesweeper-game__field {
+.minesweeper-game-field {
   overflow: auto;
   @include block(4px);
+
+  table {
+    tr {
+      transition: min-height 100ms;
+
+      td {
+        transition: min-width 100ms;
+        pointer-events: visiblePainted;
+      }
+    }
+  }
+
+
+}
+
+.minesweeper-game__field {
+  position: relative;
+
+  .minesweeper-game-field__config {
+    width: 50px;
+    position: absolute;
+    right: -50px;
+    top: 0;
+  }
 }
 
 .minesweeper-game {

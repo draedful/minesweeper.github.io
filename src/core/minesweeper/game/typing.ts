@@ -13,7 +13,8 @@ export enum GameStateEnum {
 export enum FieldCellMode {
     Blank,
     Marked,
-    Opened
+    Opened,
+    MarkOpen
 }
 
 export class FieldCell {
@@ -57,19 +58,20 @@ export interface MinesweeperEvents {
     loading: [boolean],
     changeField: [Field];
     changeState: [GameStateEnum];
+    allOpening: [GameCommandOpenResp],
 }
 
 export interface MineSweeperController extends EventEmitter<MinesweeperEvents> {
 
-    startTime: number | void;
-    field: Field;
-    loading: boolean;
-    state: GameStateEnum;
+    readonly field: Field;
+    readonly loading: boolean;
+    readonly state: GameStateEnum;
     readonly level: number;
 
     newGame(level: number): Promise<GameCommandNewRespStatus>;
 
-    openCell(...cells: FieldCell[]): Promise<GameCommandOpenResp | undefined>;
+    openCell(...cells: FieldCell[]): Promise<GameCommandOpenResp>;
+
     updateMap(): void;
 
     markCell(...cells: FieldCell[]): void;

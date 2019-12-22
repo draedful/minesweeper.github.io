@@ -1,7 +1,9 @@
 import React, { useCallback, useState } from 'react';
 import './App.scss';
+import { GameFieldStorageContextComponent } from "./components/FieldSettings/context";
+import { GameStatsScope } from "./components/GameStats/context";
 import { MinesweeperGame } from "./components/minesweeper";
-import { MineSweeper } from "./components/minesweeper/hooks";
+import { MineSweeper } from "./components/minesweeper/hooks/context";
 import { Menu } from "./components/minesweeper/menu";
 import { LoadingDialog } from "./components/server/LoadingDialog";
 import { ServerProvider } from "./server/context";
@@ -13,9 +15,12 @@ const Game = () => {
         return <Menu onSelect={ (level) => setLevel(level) }/>
     }
     return (
-        <MineSweeper level={ level }>
-            <MinesweeperGame close={ close }/>
-        </MineSweeper>
+        <GameStatsScope>
+            <MineSweeper level={ level }>
+                <MinesweeperGame close={ close }/>
+            </MineSweeper>
+        </GameStatsScope>
+
     )
 };
 
@@ -24,7 +29,9 @@ const App: React.FC = () => {
         <ServerProvider>
             <LoadingDialog/>
             <div className="game-wrapper">
-                <Game/>
+                <GameFieldStorageContextComponent>
+                    <Game/>
+                </GameFieldStorageContextComponent>
             </div>
         </ServerProvider>
     );

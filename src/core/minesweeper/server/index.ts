@@ -46,12 +46,6 @@ export class CommandServer extends EventEmitter<CommandServerEvents> implements 
         }
     }
 
-    public open(cells: string[]): Promise<GameCommandResp['open']> {
-        return new Promise((resolve, reject) => {
-
-        })
-    }
-
     public dispatch<Command extends keyof GameCommandResp>(command: Command, args?: string | number): Promise<GameCommandResp[Command]> {
         return new Promise((resolve, reject) => {
             this.queue.push(concat(command, args));
@@ -128,11 +122,12 @@ export class CommandServer extends EventEmitter<CommandServerEvents> implements 
 
 
 function measure(name: string, dir?: 'start' | 'end'): void {
-    // if (isDevMode()) return;
-    if (dir) {
-        performance.mark(`${ name }_${ dir }`);
-    }
-    if (!dir || dir === 'end') {
-        performance.measure(name, `${ name }_start`, `${ name }_end`);
+    if (isDevMode()) {
+        if (dir) {
+            performance.mark(`${ name }_${ dir }`);
+        }
+        if (!dir || dir === 'end') {
+            performance.measure(name, `${ name }_start`, `${ name }_end`);
+        }
     }
 }

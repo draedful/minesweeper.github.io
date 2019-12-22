@@ -8,6 +8,7 @@ const addClassName = (className: string) => (condition: boolean): string => {
 const cellBlankClass = addClassName('mine-cell--blank');
 const cellOpenedClass = addClassName('mine-cell--opened');
 const cellMarkedClass = addClassName('mine-cell--marked');
+const cellMarkedOpenClass = addClassName('mine-cell--marked-open');
 const cellColor = (bombs: number | void) => {
     if (bombs >= 0 && bombs <= 4) {
         return `mine-cell--color-${ bombs }`;
@@ -26,6 +27,7 @@ export const Cell = memo(({ cell }: GridCellProps) => {
             cellBlankClass(cell.mode === FieldCellMode.Blank),
             cellOpenedClass(cell.mode === FieldCellMode.Opened),
             cellMarkedClass(cell.mode === FieldCellMode.Marked),
+            cellMarkedOpenClass(cell.mode === FieldCellMode.MarkOpen),
             cellColor(cell.bombs),
         ].join(' ');
     }, [cell.mode, cell.bombs]);
@@ -35,9 +37,6 @@ export const Cell = memo(({ cell }: GridCellProps) => {
             data-y={ cell.y }
             className={ className }
         >
-            {
-                cell.mode === FieldCellMode.Marked && '🚩'
-            }
             { cell.bombs ? cell.bombs : void 0 }
         </td>
     )
