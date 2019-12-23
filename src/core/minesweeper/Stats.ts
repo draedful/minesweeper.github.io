@@ -1,7 +1,7 @@
-import { isDevMode } from "../../helpers/is_dev_mode";
 import { EventEmitter } from "../helpers/event-emitter";
 
 export interface GameStatsData {
+    stopGame?: number;
     startGame?: number;
     open?: number;
     mark?: number;
@@ -35,14 +35,21 @@ export class GameStatsService extends EventEmitter<GameStateEvents> {
     }
 
     public mark(markName: MarkTypes): void {
-        if (markName === "startGame") {
-            if (this.state[markName] && isDevMode()) {
-                throw new Error('Game already started');
-            }
-            this.state[markName] = Date.now();
-            return
+        switch (markName) {
+            case "startGame":
+                if (!this.state.startGame) {
+                    this.state.startGame = Date.now();
+                }
+                break;
+            case "stopGame":
+                if (!this.state.stopGame) {
+                    this.state.stopGame = Date.now();
+                }
+                break;
+            default:
+                const prevVal = this.state[markName] || 0;
+                this.state[markName] = prevVal + 1;
         }
-        const prevVal = this.state[markName] || 0;
-        this.state[markName] = prevVal + 1;
+        this.emit("change", this.state);
     }
 }

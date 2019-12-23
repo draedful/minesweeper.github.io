@@ -10,15 +10,6 @@
   @include block(4px);
 }
 
-.minesweeper-header {
-  display: flex;
-  justify-content: space-between;
-}
-
-.bombs-indicator {
-  font-size: 3rem;
-}
-
 .minesweeper-game-field {
   overflow: auto;
   @include block(4px);

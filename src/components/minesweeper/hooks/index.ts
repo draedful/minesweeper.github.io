@@ -7,7 +7,7 @@ import {
     MineSweeperController
 } from "@minesweeper/game";
 import { useCallback, useContext, useEffect, useState } from "react";
-import { useGameStatsMark } from "../../GameStats/hooks";
+import { useGameStatsMark, useGameStatsReset } from "../../GameStats/hooks";
 import { MineSweeperContext } from "./context";
 
 export const useMinesweeperState = (): GameStateEnum => {
@@ -34,8 +34,10 @@ export const useMinesweeperLoading = (): boolean => {
 
 export const useMinesweeperRestart = (): () => Promise<GameCommandNewRespStatus> => {
     const minesweeper = useContext(MineSweeperContext);
+    const a = useGameStatsReset();
     return useCallback(() => {
         if (minesweeper) {
+            a();
             return minesweeper.newGame(minesweeper.level);
         }
         return Promise.reject(new Error('Minesweeper controller is not exist'));
@@ -70,14 +72,22 @@ export const useMineSweeperActions = (): [OpenCellsFn, MarkCellsFn] => {
 
     const open = useCallback((cells: FieldCell[]) => {
         if (mineSweeper && cells.length) {
+            markStat("startGame");
             markStat("open", cells.length);
-            return mineSweeper.openCell(...cells);
+            return mineSweeper.openCell(...cells)
+                .then((resp) => {
+                    if(resp.status !== GameCommandOpenRespStatus.OK) {
+                        markStat("stopGame");
+                    }
+                    return resp;
+                })
         }
         return Promise.resolve({ status: GameCommandOpenRespStatus.OK });
     }, [mineSweeper, markStat]) as OpenCellsFn;
 
     const mark = useCallback((cells: FieldCell[]) => {
         if (mineSweeper && cells.length) {
+            markStat("startGame");
             markStat("mark", cells.length);
             mineSweeper.markCell(...cells);
         }

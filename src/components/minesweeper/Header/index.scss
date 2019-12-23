@@ -1,0 +1,14 @@
+.minesweeper-header {
+  display: flex;
+  justify-content: space-between;
+  align-content: center;
+}
+.bombs-indicator {
+  font-size: 3rem;
+}
+
+.minesweeper-header__center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}

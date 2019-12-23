@@ -3,7 +3,8 @@ import { Button } from "../../Button";
 import { useMinesweeperRestart } from "../hooks";
 import { useAutoSolver } from "../solver.hooks";
 import { GameStateIndicator } from "./GameStateIndicator";
-
+import { GameTimer } from "./GameTimer";
+import './index.scss';
 
 export const GameHeader = ({ close }: { close: () => void }) => {
     const restart = useMinesweeperRestart();
@@ -11,10 +12,14 @@ export const GameHeader = ({ close }: { close: () => void }) => {
     return (
         <div className='minesweeper-header'>
             <Button onClick={ close }>Close Game</Button>
-            <Button className='bombs-indicator' onClick={ restart }>
-                <GameStateIndicator/>
+            <div className='minesweeper-header__center'>
+                <Button className='bombs-indicator' onClick={ restart }>
+                    <GameStateIndicator/>
+                </Button>
+                <GameTimer/>
+            </div>
+            <Button onClick={ solve }>Run Auto-Solver
             </Button>
-            <Button onClick={ solve }>Run Auto-Solver</Button>
         </div>
     )
 };

@@ -25,10 +25,10 @@ export const LoadingDialog = () => {
     return (
         <dialog ref={ dialog } className='server-state-dialog'>
             {
-                CommandServerState.CONNECTING && '...Connecting'
+                state === CommandServerState.CONNECTING && '...Connecting'
             }
             {
-                CommandServerState.CLOSED && 'Connection closed'
+                state === CommandServerState.CLOSED && 'Connection closed'
             }
         </dialog>
     )

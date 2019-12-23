@@ -18,7 +18,7 @@ function useMIneSweeperCellSizeWithControls(): [number, () => void, () => void] 
     }, [size, setSize]);
     const minus = useCallback(() => {
         if (size >= MIN_CELL_SIZE) {
-            setSize(size + 1);
+            setSize(size - 1);
         }
     }, [size, setSize]);
 
@@ -65,8 +65,8 @@ export const MinesweeperGame = ({ close }: MinesweeperGameProps) => {
                 </div>
             </div>
             <div className='minesweeper-game-field__config'>
-                <Button disabled={ plusAvailable } onClick={ plus }>+</Button>
-                <Button disabled={ minusAvailable } onClick={ minus }>-</Button>
+                <Button disabled={ !plusAvailable } onClick={ plus }>+</Button>
+                <Button disabled={ !minusAvailable } onClick={ minus }>-</Button>
             </div>
         </div>
     );

@@ -5,7 +5,7 @@ import { GameStatsScope } from "./components/GameStats/context";
 import { MinesweeperGame } from "./components/minesweeper";
 import { MineSweeper } from "./components/minesweeper/hooks/context";
 import { Menu } from "./components/minesweeper/menu";
-import { LoadingDialog } from "./components/server/LoadingDialog";
+import { LoadingDialog } from "./components/Server/LoadingDialog";
 import { ServerProvider } from "./server/context";
 
 const Game = () => {
