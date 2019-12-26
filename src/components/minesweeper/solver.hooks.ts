@@ -1,12 +1,15 @@
 import { GameCommandOpenResp, GameCommandOpenRespStatus } from "@minesweeper/game";
 import { checkPredict, lookAtField, openRandomCell, predictFromState, SolveFieldState } from "@minesweeper/solver";
 import { useCallback, useRef } from "react";
+import { useGameStatsGetter } from "../GameStats/hooks";
 import { useSolverSettings } from "../SolverSettings/hooks";
 import { useMineSweeperActions, useMinesweeperFieldGetter, useMinesweeperRestart } from "./hooks";
 
 export const useAutoSolver = () => {
+    const solveTimerHandler = useRef<number>();
     const lasPredictRef = useRef<Required<SolveFieldState>['predict']>();
     const [openCells, markCells] = useMineSweeperActions();
+    const getStats = useGameStatsGetter();
     const getField = useMinesweeperFieldGetter();
     const restart = useMinesweeperRestart();
 
@@ -54,6 +57,19 @@ export const useAutoSolver = () => {
             }
         }
 
+        if (!state.open.length) {
+            const stats = getStats();
+            if (stats && !stats.startGame) {
+                const randomCell = openRandomCell(field);
+                if (randomCell) {
+                    state = {
+                        ...state,
+                        open: [randomCell]
+                    }
+                }
+            }
+        }
+
         if (state) {
             const resp = await applySolveFieldState(state);
             switch (resp.status) {
@@ -63,14 +79,19 @@ export const useAutoSolver = () => {
                 case GameCommandOpenRespStatus.LOSE:
                     lasPredictRef.current = void 0;
                     await restart();
-                    setTimeout(solve);
+                    solveTimerHandler.current = setTimeout(solve);
                     break;
                 case GameCommandOpenRespStatus.OK:
-                    setTimeout(solve, solverSettings.stepTimeout);
+                    solveTimerHandler.current = setTimeout(solve, solverSettings.stepTimeout);
                     break;
             }
         }
-    }, [getField, restart, lasPredictRef, applySolveFieldState, solverSettings]);
+    }, [getField, getStats, restart, lasPredictRef, applySolveFieldState, solverSettings]);
 
-    return solve;
+    return [solve, useCallback(() => {
+        debugger;
+        if (solveTimerHandler.current) {
+            clearTimeout(solveTimerHandler.current);
+        }
+    }, [solveTimerHandler])];
 };

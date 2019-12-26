@@ -122,12 +122,12 @@ export class CommandServer extends EventEmitter<CommandServerEvents> implements 
 
 
 function measure(name: string, dir?: 'start' | 'end'): void {
-    if (isDevMode()) {
+    if (!isDevMode()) {
         if (dir) {
-            performance.mark(`${ name }_${ dir }`);
+            // performance.mark(`${ name }_${ dir }`);
         }
         if (!dir || dir === 'end') {
-            performance.measure(name, `${ name }_start`, `${ name }_end`);
+            // performance.measure(name, `${ name }_start`, `${ name }_end`);
         }
     }
 }

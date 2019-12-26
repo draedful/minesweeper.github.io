@@ -32,11 +32,7 @@ export const Cell = memo(({ cell }: GridCellProps) => {
         ].join(' ');
     }, [cell.mode, cell.bombs]);
     return (
-        <td
-            data-x={ cell.x }
-            data-y={ cell.y }
-            className={ className }
-        >
+        <td className={ className }>
             { cell.bombs ? cell.bombs : void 0 }
         </td>
     )

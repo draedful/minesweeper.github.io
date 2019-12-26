@@ -3,6 +3,7 @@
     box-sizing: border-box;
     font-weight: bold;
     background: #D8D8D8;
+    will-change: contents;
 }
 
 .table-auto .mine-cell.mine-cell--opened:not(.mine-cell--marked):not(.mine-cell--color-0):hover {
@@ -12,19 +13,26 @@
 
 .mine-cell.mine-cell--blank {
     cursor: pointer;
-    box-shadow: inset 1px 1px 0px #FFFFFF, inset -1px -1px 0px #7B787B;
+    /*box-shadow: inset 1px 1px 0px #FFFFFF, inset -1px -1px 0px #7B787B;*/
+    border-top: 1px solid #FFFFFF;
+    border-left: 1px solid #FFFFFF;
+    border-right: 1px solid #7B787B;
+    border-bottom: 1px solid #7B787B;
 }
 
 .mine-cell.mine-cell--blank:hover, .mine-cell--marked-open, .mine-cell--opened, .mine-cell--marked {
-    box-shadow: inset 1px 1px 0px #7B787B, inset -1px -1px 0px #FFFFFF;
+    /*box-shadow: inset 1px 1px 0px #7B787B, inset -1px -1px 0px #FFFFFF;*/
+    border-top: 1px inset #FFFFFF;
+    border-left: 1px inset #FFFFFF;
+    border-right: 1px inset #7B787B;
+    border-bottom: 1px inset #7B787B;
 }
 
 .mine-cell--marked-open:after {
     content: '*';
 }
-.mine-cell--marked:after {
-    content: '$';
-    color: red;
+.mine-cell--marked {
+    background: red;
 }
 
 .mine-cell--marked {

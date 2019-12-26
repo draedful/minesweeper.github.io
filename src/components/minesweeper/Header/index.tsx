@@ -1,14 +1,23 @@
-import React from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { Button } from "../../Button";
 import { useMinesweeperRestart } from "../hooks";
 import { useAutoSolver } from "../solver.hooks";
 import { GameStateIndicator } from "./GameStateIndicator";
-import { GameTimer } from "./GameTimer";
 import './index.scss';
 
 export const GameHeader = ({ close }: { close: () => void }) => {
+    const [autoSolverRunned, setAutoSolverRinned] = useState(false);
     const restart = useMinesweeperRestart();
-    const solve = useAutoSolver();
+    const [solve, stop] = useAutoSolver();
+    const toggleAutoSolver = useCallback(() => {
+        if (autoSolverRunned) {
+            setAutoSolverRinned(false);
+            stop();
+        } else {
+            setAutoSolverRinned(true);
+            solve();
+        }
+    }, [solve, stop, autoSolverRunned, setAutoSolverRinned]);
     return (
         <div className='minesweeper-header'>
             <Button onClick={ close }>Close Game</Button>
@@ -16,9 +25,10 @@ export const GameHeader = ({ close }: { close: () => void }) => {
                 <Button className='bombs-indicator' onClick={ restart }>
                     <GameStateIndicator/>
                 </Button>
-                <GameTimer/>
+                {/*<GameTimer/>*/ }
             </div>
-            <Button onClick={ solve }>Run Auto-Solver
+            <Button onClick={ toggleAutoSolver }>
+                { autoSolverRunned ? 'Stop Auto-Solver' : 'Run Auto-Solver' }
             </Button>
         </div>
     )

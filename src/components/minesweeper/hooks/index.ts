@@ -34,14 +34,14 @@ export const useMinesweeperLoading = (): boolean => {
 
 export const useMinesweeperRestart = (): () => Promise<GameCommandNewRespStatus> => {
     const minesweeper = useContext(MineSweeperContext);
-    const a = useGameStatsReset();
+    const resetStats = useGameStatsReset();
     return useCallback(() => {
         if (minesweeper) {
-            a();
+            resetStats();
             return minesweeper.newGame(minesweeper.level);
         }
         return Promise.reject(new Error('Minesweeper controller is not exist'));
-    }, [minesweeper])
+    }, [minesweeper, resetStats])
 };
 
 export function useMinesweeperField(): Field {
@@ -76,7 +76,7 @@ export const useMineSweeperActions = (): [OpenCellsFn, MarkCellsFn] => {
             markStat("open", cells.length);
             return mineSweeper.openCell(...cells)
                 .then((resp) => {
-                    if(resp.status !== GameCommandOpenRespStatus.OK) {
+                    if (resp.status !== GameCommandOpenRespStatus.OK) {
                         markStat("stopGame");
                     }
                     return resp;

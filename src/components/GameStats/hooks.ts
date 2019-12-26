@@ -22,7 +22,14 @@ export const useGameStatsReset = (): () => void => {
             gameStatsService.reset();
         }
     }, [gameStatsService]);
-}
+};
+
+export const useGameStatsGetter = () => {
+    const gameStatsService = useContext(GameStatsContext);
+    return useCallback(() => {
+        return gameStatsService && gameStatsService.getStats();
+    }, [gameStatsService]);
+};
 
 export const useGameStatsData = <K extends keyof GameStatsData>(name: K): GameStatsData[K] | void => {
     const gameStatsService = useContext(GameStatsContext);

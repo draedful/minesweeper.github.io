@@ -112,14 +112,15 @@ export class MinesweeperGame extends EventEmitter<MinesweeperEvents> implements 
         const map = await this.dispatcher.dispatch("map");
         if (map) {
             let modified = false;
-            const newField = map.reduce((acc: Field, item: string[], rowIndex) => {
+            for (let rowIndex = 0; rowIndex < map.length; rowIndex++) {
                 let touched = false;
-                let row = acc[rowIndex];
+                let row = this.field[rowIndex];
                 if (!row) {
                     row = [];
-                    acc.push(row);
+                    this.field.push(row);
                 }
-                item.forEach((value: string, cellIndex: number) => {
+                for (let cellIndex = 0; cellIndex < map[rowIndex].length; cellIndex++) {
+                    const value = map[rowIndex][cellIndex];
                     if (!row[cellIndex]) {
                         row.push(new FieldCell(cellIndex, rowIndex));
                         modified = true;
@@ -138,16 +139,48 @@ export class MinesweeperGame extends EventEmitter<MinesweeperEvents> implements 
                         }
                         row[cellIndex] = item;
                     }
-                });
+                }
                 if (touched) {
-                    acc[rowIndex] = Array.from(row);
+                    this.field[rowIndex] = Array.from(row);
                     modified = true;
                 }
-                return acc;
-            }, this.field);
+            }
+            // const newField = map.reduce((acc: Field, item: string[], rowIndex) => {
+            //     let touched = false;
+            //     let row = acc[rowIndex];
+            //     if (!row) {
+            //         row = [];
+            //         acc.push(row);
+            //     }
+            //     item.forEach((value: string, cellIndex: number) => {
+            //         if (!row[cellIndex]) {
+            //             row.push(new FieldCell(cellIndex, rowIndex));
+            //             modified = true;
+            //         } else {
+            //             let item = row[cellIndex];
+            //             const bombs = +value;
+            //             if (item.mode === FieldCellMode.Marked) {
+            //                 if (!isNaN(bombs)) {
+            //                     item = item.update(FieldCellMode.Opened, bombs);
+            //                 }
+            //             } else {
+            //                 item = item.update(isNaN(bombs) ? FieldCellMode.Blank : FieldCellMode.Opened, isNaN(bombs) ? void 0 : bombs);
+            //             }
+            //             if (item !== row[cellIndex]) {
+            //                 touched = true;
+            //             }
+            //             row[cellIndex] = item;
+            //         }
+            //     });
+            //     if (touched) {
+            //         acc[rowIndex] = Array.from(row);
+            //         modified = true;
+            //     }
+            //     return acc;
+            // }, this.field);
             this.setLoading(false);
             if (modified) {
-                this.field = Array.from(newField);
+                this.field = Array.from(this.field);
                 this.emitChangeField();
             }
         }

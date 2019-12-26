@@ -1,7 +1,6 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { GameStatsContext } from "../../GameStats/context";
 
-
 export const GameTimer = () => {
     const gameStatsService = useContext(GameStatsContext);
     const fpsControl = useRef<{ delta: number, then: number, interval: number }>({

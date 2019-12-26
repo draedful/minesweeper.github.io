@@ -7,7 +7,7 @@ export interface SolverSettings {
 }
 
 export const DefaultSolverSettings = {
-    stepTimeout: 0,
+    stepTimeout: 10,
     predictBound: 0.7,
     selectRandomCellIfNoAnyChoice: true,
 };
