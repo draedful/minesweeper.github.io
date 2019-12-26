@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Button } from "../../Button";
 import { useMinesweeperRestart } from "../hooks";
 import { useAutoSolver } from "../solver.hooks";
@@ -25,7 +25,6 @@ export const GameHeader = ({ close }: { close: () => void }) => {
                 <Button className='bombs-indicator' onClick={ restart }>
                     <GameStateIndicator/>
                 </Button>
-                {/*<GameTimer/>*/ }
             </div>
             <Button onClick={ toggleAutoSolver }>
                 { autoSolverRunned ? 'Stop Auto-Solver' : 'Run Auto-Solver' }

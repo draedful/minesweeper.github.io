@@ -1,6 +1,6 @@
 import { MineSweeperController, MinesweeperGame } from "@minesweeper/game";
 import React, { ReactNode, useContext, useEffect, useMemo } from "react";
-import { ServerContext } from "../../../server/context";
+import { ServerContext } from "../../Server/context";
 
 export const MineSweeperContext = React.createContext<MineSweeperController | void>(void 0);
 

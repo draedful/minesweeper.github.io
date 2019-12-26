@@ -1,6 +1,6 @@
 import { CommandServerState } from "@minesweeper/server";
 import React, { useLayoutEffect, useRef } from 'react';
-import { useServerState } from "../../server/hooks";
+import { useServerState } from "./hooks";
 
 export const LoadingDialog = () => {
     const state = useServerState();

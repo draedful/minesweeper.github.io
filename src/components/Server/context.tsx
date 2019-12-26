@@ -1,6 +1,6 @@
 import { CommandServer } from "@minesweeper/server";
 import React, { ReactNode } from "react";
-import { WS_SERVER } from "../helpers/env";
+import { WS_SERVER } from "../../helpers/env";
 
 // TODO: use env to get ws url
 const server = new CommandServer(WS_SERVER);

@@ -6,7 +6,7 @@ import { useSolverSettings } from "../SolverSettings/hooks";
 import { useMineSweeperActions, useMinesweeperFieldGetter, useMinesweeperRestart } from "./hooks";
 
 export const useAutoSolver = () => {
-    const solveTimerHandler = useRef<number>();
+    const runnedRef = useRef<boolean>(false);
     const lasPredictRef = useRef<Required<SolveFieldState>['predict']>();
     const [openCells, markCells] = useMineSweeperActions();
     const getStats = useGameStatsGetter();
@@ -79,19 +79,34 @@ export const useAutoSolver = () => {
                 case GameCommandOpenRespStatus.LOSE:
                     lasPredictRef.current = void 0;
                     await restart();
-                    solveTimerHandler.current = setTimeout(solve);
+                    // TODO: solve fn is using UseCallback hook,
+                    //  so when any of this deps will change
+                    //  that function will re-create
+                    //  so setTimeout will call prev function.
+                    //  In order to prevent this, we need function without recreating
+                    //  Bad way - create a Ref with object with deps.
+                    if (runnedRef.current) {
+                        setTimeout(solve);
+                    }
                     break;
                 case GameCommandOpenRespStatus.OK:
-                    solveTimerHandler.current = setTimeout(solve, solverSettings.stepTimeout);
+                    if (runnedRef.current) {
+                        setTimeout(solve, solverSettings.stepTimeout);
+                    }
                     break;
             }
         }
-    }, [getField, getStats, restart, lasPredictRef, applySolveFieldState, solverSettings]);
+    }, [runnedRef, getField, getStats, restart, lasPredictRef, applySolveFieldState, solverSettings]);
 
-    return [solve, useCallback(() => {
-        debugger;
-        if (solveTimerHandler.current) {
-            clearTimeout(solveTimerHandler.current);
+    const runSolver = useCallback(() => {
+        runnedRef.current = true;
+        solve();
+    }, [solve]);
+    const stop = useCallback(() => {
+        if (runnedRef.current) {
+            runnedRef.current = false;
         }
-    }, [solveTimerHandler])];
+    }, [runnedRef]);
+
+    return [runSolver, stop];
 };

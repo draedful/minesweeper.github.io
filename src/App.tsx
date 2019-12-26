@@ -5,8 +5,8 @@ import { GameStatsScope } from "./components/GameStats/context";
 import { MinesweeperGame } from "./components/minesweeper";
 import { MineSweeper } from "./components/minesweeper/hooks/context";
 import { Menu } from "./components/minesweeper/menu";
+import { ServerProvider } from "./components/Server/context";
 import { LoadingDialog } from "./components/Server/LoadingDialog";
-import { ServerProvider } from "./server/context";
 
 const Game = () => {
     const [level, setLevel] = useState<number | null>(null);
